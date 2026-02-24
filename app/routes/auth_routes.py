@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, jwt_required, get_jwt_identity
 from app.extensions import mongo, bcrypt
 from flask_jwt_extended import create_access_token
+from bson import ObjectId
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -48,3 +49,23 @@ def login():
     )
 
     return jsonify({"access_token": token})
+
+
+user_bp = Blueprint("user", __name__)
+
+@user_bp.route("/profile", methods=["GET"])
+@jwt_required()
+def get_profile():
+    current_user_id = get_jwt_identity()
+
+    user = mongo.db.users.find_one(
+        {"_id": ObjectId(current_user_id)},
+        {"password": 0}   # exclude password
+    )
+
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    user["_id"] = str(user["_id"])
+
+    return jsonify(user), 200
